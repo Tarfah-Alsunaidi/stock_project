@@ -702,9 +702,9 @@ ul.concl-list li {{ margin-bottom:6px; }}
 .mvh {{ font-weight:700; color:{TEXT}; margin-bottom:4px; font-size:1rem; }}
 .mv {{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid {LINE}; }}
 .mv:last-child {{ border-bottom:none; }}
-.mv-l {{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }}
-.mv-l b {{ color:{TEXT}; margin-inline-end:8px; font-family:'IBM Plex Mono', monospace; }}
-.mv-l span {{ color:{MUTED}; font-size:.85rem; }}
+.mv-l {{ display:flex; align-items:baseline; gap:10px; min-width:0; white-space:nowrap; }}
+.mv-l b {{ color:{TEXT}; font-family:'IBM Plex Mono', monospace; flex-shrink:0; }}
+.mv-l span {{ color:{MUTED}; font-size:.85rem; overflow:hidden; text-overflow:ellipsis; min-width:0; }}
 .mv-r {{ display:flex; gap:10px; align-items:center; direction:ltr; flex-shrink:0; }}
 .mv-r .mono {{ color:{TEXT}; font-size:.9rem; }}
 .chg {{ padding:3px 8px; border-radius:8px; font-weight:600; font-size:.8rem; font-family:'IBM Plex Mono', monospace;
@@ -939,6 +939,12 @@ a {{ text-decoration: underline; }}
 # Streamlit ≥ 1.49 replaced use_container_width with width="stretch"
 _V = tuple(int(x) for x in st.__version__.split(".")[:2])
 _W = {"width": "stretch"} if _V >= (1, 49) else {"use_container_width": True}
+try:      # plotly_chart got its own `width` argument later than other elements; check instead of guessing
+    import inspect as _inspect
+    _PW = ({"width": "stretch"} if "width" in _inspect.signature(st.plotly_chart).parameters
+           else {"use_container_width": True})
+except Exception:
+    _PW = {"use_container_width": True}
 _card_ids = count()
 
 
@@ -978,7 +984,7 @@ def card():
 
 
 def chart(fig, target=st):
-    target.plotly_chart(fig, config={"displaylogo": False}, **_W)
+    target.plotly_chart(fig, config={"displaylogo": False}, **_PW)
 
 
 def table(df, target=st, **kw):
@@ -1274,7 +1280,8 @@ def discover_new(cands):
             sector = info.get("sector") or "Other"
         except Exception:
             pass
-        rows.append((int(t[:-3]), str(name).title() if str(name).isupper() else str(name), sector, t))
+        name = str(name).strip().rstrip(".").strip()
+        rows.append((int(t[:-3]), name.title() if name.isupper() else name, sector, t))
     return pd.DataFrame(rows, columns=empty.columns) if rows else empty
 
 
@@ -1392,7 +1399,7 @@ def movers_html(df, title, icon, value_col="Change"):
     for r in df.itertuples():
         right = (f'<span class="chg {pct_cls(r.Change)}">{r.Change:+.2%}</span>' if value_col == "Change"
                  else f'<span class="chg gold">SAR {big_num(r.Value)}</span>')
-        rows.append(f'<div class="mv"><div class="mv-l"><b>{r.Stock_Symbol}</b><span>{r.Company_Name[:22]}</span></div>'
+        rows.append(f'<div class="mv"><div class="mv-l"><b>{r.Stock_Symbol}</b><span><bdi>{str(r.Company_Name).rstrip(" .")[:22]}</bdi></span></div>'
                     f'<div class="mv-r"><span class="mono">{r.Last:,.2f}</span>{right}</div></div>')
     return f'<div class="mvbox" dir="{DIR}"><div class="mvh">{icon} {title}</div>{"".join(rows)}</div>'
 
