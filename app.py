@@ -131,14 +131,21 @@ def _load_prefs():
     return p
 
 
-if "prefs" not in st.session_state:
+if not isinstance(st.session_state.get("prefs"), dict):
     st.session_state.prefs = _load_prefs()
 P = st.session_state.prefs
+# repair any missing or invalid value (e.g. a session left over from an older version of the app)
+for _k, _d in DEFAULTS.items():
+    _v = P.get(_k, _d)
+    if type(_v) is not type(_d) or (_k in CHOICES and _v not in CHOICES[_k]):
+        P[_k] = _d
 
 
 def save_pref(name):
     """Widget callback: copy the widget value into prefs and into the URL (so a bookmark keeps it)."""
-    v = st.session_state[f"_w_{name}"]
+    v = st.session_state.get(f"_w_{name}", DEFAULTS[name])
+    if name in CHOICES and v not in CHOICES[name]:
+        v = DEFAULTS[name]
     st.session_state.prefs[name] = v
     st.query_params[name] = ("1" if v else "0") if isinstance(v, bool) else str(v)
 
